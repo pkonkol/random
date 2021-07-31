@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper-master
+spec:
+  selector:
+    matchLabels:
+      app: scraper-master
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: scraper-master
+    spec:
+      containers:
+      - name: scraper-master
+        image: scraper-master:latest
+        imagePullPolicy: Never
+        ports:
+          - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scraper-master-service
+  labels:
+    app: scraper-master
+spec:
+  selector:
+    app: scraper-master
+  ports:
+    - protocol: TCP
+      name: pyzmq
+      port: 5556
+      targetPort: 5556

@@ -1,0 +1,21 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scraper-slave
+spec:
+  selector:
+    matchLabels:
+      app: scraper-slave
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: scraper-slave
+    spec:
+      containers:
+      - name: scraper-slave
+        image: scraper-slave:latest
+        imagePullPolicy: Never
+        ports:
+          - containerPort: 80
