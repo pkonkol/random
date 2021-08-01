@@ -20,5 +20,19 @@ spec:
         ports:
           - containerPort: 80
         env:
+          - name: "ZMQ_MASTER_HOSTNAME"
+            valueFrom:
+              configMapKeyRef:
+                name: scraper-slave-configmap
+                key: scraper_master_hostname
+        env:
           - name: "PYTHONUNBUFFERED"
             value: "1"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scraper-slave-configmap
+data:
+  scraper_master_hostname: "scraper-master-service"

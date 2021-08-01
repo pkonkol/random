@@ -1,5 +1,6 @@
 import zmq
 import time
+print("Started master")
 
 context = zmq.Context()
 socket = context.socket(zmq.PUSH)
