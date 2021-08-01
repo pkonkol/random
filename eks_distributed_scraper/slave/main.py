@@ -1,15 +1,19 @@
+import os
+import random
 import time
 import zmq
-import os
 print("Started slave")
 
 ZMQ_MASTER_HOSTNAME = os.environ.get("ZMQ_MASTER_HOSTNAME")
+HOSTNAME = os.environ.get("HOSTNAME")
 
 context = zmq.Context()
 socket = context.socket(zmq.PULL)
-socket.connect(f"tcp://{ZMQ_MASTER_HOSTNAME}:5556")
+master_addr=f"tcp://{ZMQ_MASTER_HOSTNAME}:5556"
+print(master_addr)
+socket.connect(master_addr)
 
 while True:
-    print("I'm alive slave")
-    print(socket.recv_string())
-    time.sleep(5)
+    # print("I'm alive")
+    print(f"Pulled package: {socket.recv_string()} on {HOSTNAME}")
+    time.sleep(random.random()*10)
