@@ -4,3 +4,4 @@ docker build slave/ -t 'scraper-slave'
 minikube kubectl -- scale --replicas=0 deployment scraper-master
 minikube kubectl -- scale --replicas=0 deployment scraper-slave
 minikube kubectl -- apply -f k8s/
+gsudo minikube docker-env --unset | Invoke-Expression

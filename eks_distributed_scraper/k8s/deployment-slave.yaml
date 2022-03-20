@@ -23,6 +23,10 @@ spec:
       containers:
       - name: scraper-slave
         image: scraper-slave:latest
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "200m"
         imagePullPolicy: Never
         ports:
           - containerPort: 80

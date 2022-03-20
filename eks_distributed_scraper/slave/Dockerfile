@@ -1,4 +1,4 @@
-FROM python:3.9.6-slim
+FROM python:3.11.0a5-slim-bullseye
 
 ENV ZMQ_MASTER_HOSTNAME=${ZMQ_MASTER_HOSTNAME:-localhost}
 
