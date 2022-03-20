@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-broker
+spec:
+  selector:
+    matchLabels:
+      app: rabbitmq-broker
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-broker
+    spec:
+      containers:
+      - name: rabbitmq-broker
+        image: rabbitmq:3.9-management
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672

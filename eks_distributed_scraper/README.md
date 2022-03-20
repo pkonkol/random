@@ -1,0 +1,8 @@
+# Simple ditributed app demo using webscraping as example
+
+## Local dev setup
+Start rabbitmq broker instance.
+`docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.9-management`
+
+
+## TODO communication graph in mermaid
