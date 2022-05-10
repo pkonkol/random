@@ -1,0 +1,13 @@
+[k8s-master]
+
+[k8s-slaves]
+
+[homelab:children]
+
+[x86]
+
+[arm:children]
+
+[rpi]
+
+[android]

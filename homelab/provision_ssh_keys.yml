@@ -1,0 +1,55 @@
+---
+
+- hosts: x86,rpi #,android
+  gather_facts: false
+  vars:
+    ansible_become_pass: "{{ ansible_ssh_pass }}"
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+      become: true
+  tasks:
+
+    - name: add key to authorized_hosts
+      lineinfile:
+        path: "/home/{{ ansible_ssh_user }}/.ssh/authorized_keys"
+        line: "{{ item }}"
+        create: yes
+      loop: "{{ id_rsa_pub }}"
+ 
+    - name: enable paswordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+      become: true
+
+    - name: edit sshd_config
+      become: true
+      block:
+        - name: disable ssh pass auth
+          lineinfile:
+            dest: /etc/ssh/sshd_config
+            regex: '^(#\s*)?PasswordAuthentication'
+            line: 'PasswordAuthentication no'
+          notify: restart sshd
+
+        - name: disable ssh root login
+          lineinfile:
+            dest: /etc/ssh/sshd_config
+            regex: '^(#\s*)?PermitEmptyPasswords'
+            line: 'PermitEmptyPasswords no'
+          notify: restart sshd
+      
+        - name: disable ssh empty pass
+          lineinfile:
+            dest: /etc/ssh/sshd_config
+            regex: '^(#\s*)?PermitRootLogin'
+            line: 'PermitRootLogin no'
+          notify: restart sshd
+        # - debug: msg="tigger restart"
+        #   notify: restart sshd
+        #   changed_when: true

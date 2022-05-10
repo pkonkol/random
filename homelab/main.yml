@@ -1,0 +1,69 @@
+---
+
+- hosts: x86,rpi,android
+  tasks:
+    # - name: create prometheus user
+    #   user:
+    #     name: prometheus
+    #     shell: /usr/sbin/nologin
+    #     system: true
+    #     create_home: false
+    - name: apt update
+      apt:
+        update_cache: yes
+        upgrade: yes
+      become: true
+
+    - name: install base packages
+      become: true
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "ranger"
+
+    - name: install prometheus node_exporter
+      become: true
+      package:
+        name: prometheus-node-exporter
+        state: present
+
+    - name: enable prometheus node_exporter
+      become: true
+      service:
+        name: prometheus-node-exporter
+        state: started
+        enabled: yes
+
+    - name: make sure mikrok8s is installed
+      become: yes
+      snap:
+        name: microk8s
+        classic: yes
+
+    - name: additional snaps
+      become: yes
+      snap:
+        name: "{{ item }}"
+        classic: yes
+      loop:
+        - k9s
+        - microk8s
+        - kubectl
+
+
+- hosts: k8s-master
+  tasks:
+    - name: microk8s enable addons
+      shell:
+        cmd: microk8s enable "{{ item }}"
+      loop:
+        - helm3
+        - dashboard
+  # set up prometheus server based on compose
+  # set up microk8s master
+
+- hosts: k8s-slaves
+  tasks:
+    - debug: msg=TODO
+  # set up microk8s slaves
