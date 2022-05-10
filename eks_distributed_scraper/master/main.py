@@ -7,6 +7,7 @@ proxies = deque(range(0, 10))
 
 print("Started master")
 
+
 async def push_tasks(connection):
     async with connection:
         tasks_channel = await connection.channel()
@@ -18,7 +19,7 @@ async def push_tasks(connection):
                 routing_key=tasks_todo_q.name
             )
             await asyncio.sleep(5)
-        
+
 
 async def recv_result(connection):
     async with connection:
@@ -52,10 +53,11 @@ async def return_proxy(connection):
 
 
 async def parse_categories():
-    sitemap_url = "olx.pl/sitemap"
+    # sitemap_url = "olx.pl/sitemap"
     while True:
         print("Main loop parsing")
         await asyncio.sleep(10)
+
 
 def create_tasks(c):
     tasks = []
@@ -64,6 +66,7 @@ def create_tasks(c):
     tasks.append(asyncio.create_task(return_proxy(c)))
     # tasks.append(asyncio.create_task(parse_categories()))
     return tasks
+
 
 async def main():
     connection = await connect('amqp://localhost')

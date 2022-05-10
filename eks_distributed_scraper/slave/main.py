@@ -15,6 +15,7 @@ channel.queue_declare(queue='tasks_done', passive=True)
 proxy_channel = connection.channel()
 proxy_channel.queue_declare(queue='proxy-request')
 
+
 def get_proxy():
     print("sending proxy request")
     proxy_channel.basic_publish(exchange='',
