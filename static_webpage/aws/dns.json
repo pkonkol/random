@@ -1,0 +1,11 @@
+{
+    "Comment": "CREATE/DELETE/UPSERT a record ",
+    "Changes": [{
+    "Action": "UPSERT",
+    "ResourceRecordSet": {
+        "Name": "git.pkonkol.link",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "static-webpage-1.s3-website-eu-west-1.amazonaws.com/"}]
+}}]
+}
