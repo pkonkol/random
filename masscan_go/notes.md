@@ -11,3 +11,6 @@
     https://bgp.he.net/AS12831#_asinfo
     https://ipinfo.io/AS12831#block-summary (allows for checking hsoted domains)
     https://bgp.tools/as/12831#asinfo
+
+# Mongo filters & commands
+* `db.as.find({country: "PL"}, {as_number: 1, name: 1, rank:1, number_asns:1, number_addresses:1, _id: 0}).sort({number_addresses: 1})`

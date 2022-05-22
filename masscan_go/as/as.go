@@ -17,23 +17,59 @@ import (
 )
 
 const (
-	BGPVIEW_API_URL   = "https://api.bgpview.io"
-	ASRANK_API_URL    = "https://api.asrank.caida.org/v2/restful"
-	NOMINATIM_API_URL = "https://nominatim.openstreetmap.org/"
-	MONGODB_USER      = "test"
-	MONGODB_PASS      = "test"
-	MONGODB_IP        = "localhost"
-	MONGODB_DB        = "masscan_go"
+	BGPVIEW_API_URL = "https://api.bgpview.io"
+	ASRANK_API_URL  = "https://api.asrank.caida.org/v2/restful"
+	MONGODB_USER    = "test"
+	MONGODB_PASS    = "test"
+	MONGODB_IP      = "localhost"
+	MONGODB_DB      = "masscan_go"
 )
 
 func Pubtest() string {
 	return "works"
 }
 
+// Return AS'es for a given country from the smallest that have registered
+// active prefixes and are not scanned yet.
+// If an AS is marked as interesting manually then return it and and it's
+// unscanned downstream peers.
+func GetASFromSmallest(country string) {
+	client, ctx, _ := getMongoClient()
+	defer func() {
+		if err := client.Disconnect(ctx); err != nil {
+			panic(err)
+		}
+	}()
+	collection := client.Database("masscan_go").Collection("as")
+	opts := options.Find().SetSort(bson.D{{"number_addresses", 1}})
+	cursor, err := collection.Find(ctx,
+		bson.M{"country": country, "number_addresses": bson.M{"$gt": 0}},
+		opts)
+	if err != nil {
+		panic(err)
+	}
+
+	var results []bson.D
+	if err = cursor.All(ctx, &results); err != nil {
+		panic(err)
+	}
+	for _, r := range results[0:10] {
+		fmt.Println(r)
+	}
+}
+
+func GetASFromClosest(lat float64, lon float64) {
+	// TODO
+}
+
+func ScanIDMongo() {
+
+}
+
 func getAsGeocoding() {
-	url := NOMINATIM_API_URL + "?"
-	bodyBytes := makeApiCall(url) // test for first element
-	fmt.Println(bodyBytes)
+	// TODO Later most likely with Google api or bing api as only these
+	// didn't suck for example address from TASK
+	// Using batch requests should bring down the price
 }
 
 func getDetails(as string) (asnDetails, asnPeers, asnPrefixes) {
