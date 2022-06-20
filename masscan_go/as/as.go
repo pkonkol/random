@@ -29,11 +29,41 @@ func Pubtest() string {
 	return "works"
 }
 
+func GetNextPrefix(country string, method string) string {
+	switch method {
+	case "as-smallest":
+		// TODO set asn in case these statements
+		fmt.Println("Returning next prefix by smallest AS")
+	case "org-smallest":
+		fmt.Println("Unimplemented")
+		return ""
+	case "interesting":
+		fmt.Println("Unimplemented")
+		return ""
+	}
+	asn := getAsnFromSmallest(country)
+	if !areDeailsInDB(asn) {
+		details, peers, prefixes := getDetails(asn)
+		whois := getWhoisDetails(asn)
+		asnDetailsMongo(details, prefixes, peers, whois)
+	}
+	prefix := getFirstUnscannedPrefix(asn)
+	return prefix
+}
+
+func areDeailsInDB(asn string) bool {
+
+}
+
+func MarkPrefixScanned(prefix string, asn string) {
+
+}
+
 // Return AS'es for a given country from the smallest that have registered
 // active prefixes and are not scanned yet.
 // If an AS is marked as interesting manually then return it and and it's
 // unscanned downstream peers.
-func GetASFromSmallest(country string) {
+func getAsnFromSmallest(country string) string {
 	client, ctx, _ := getMongoClient()
 	defer func() {
 		if err := client.Disconnect(ctx); err != nil {
@@ -58,11 +88,11 @@ func GetASFromSmallest(country string) {
 	}
 }
 
-func GetASFromClosest(lat float64, lon float64) {
-	// TODO
+func getAsnFromClosest(lat float64, lon float64) string {
+	// TODO later
 }
 
-func ScanIDMongo() {
+func getFirstUnscannedPrefix(asn string) string {
 
 }
 
@@ -257,7 +287,6 @@ func asrankToMongo() {
 		}
 		offset += reqEntries
 	}
-	// cur, err := collection.Find(ctx, bson.D{})
 	count, err := collection.CountDocuments(ctx, bson.M{})
 	if err != nil {
 		panic(err)

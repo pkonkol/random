@@ -23,78 +23,115 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const TOTAL_SHARDS int = 1
+// const TOTAL_SHARDS int = 1
+// const SHARD int = 1
 const RATE string = "10000"
+const SCANNED_COUNTRY string = "PL"
+const SCAN_METHOD string = "as-smallest"
 
 var fullFlag = flag.Bool("full", true, "start full scanning")
+var testFlag = flag.String("test", "", "test the tests for flags")
 
+// Sharding would allow to distribute the scans among multiple machines and then
+// merge the databases. This works for masscan, Nmap would have to scan only
+// adresses scanned by masscan locally, then it would be sharded too.
+var shardFlag = flag.Int("shard", 1, "which shard should run on this instance")
+var totalShardsFlag = flag.Int("totalShards", 1, "how many shards are deployed in general")
+
+// TODO use just one mongo client for package
 // var DB *mongo.Client =
 
 func main() {
-	fmt.Println(as.Pubtest())
-	os.Exit(1)
+	flag.Parse()
+	if !*fullFlag {
+		fmt.Println(as.Pubtest())
+		os.Exit(1)
+	}
 	os.MkdirAll(filepath.Join(".", "tmp"), os.ModePerm)
-	// ipRange := "91.209.116.0/24"
 	const portRange = "21,22,23,25,80,443,3389,110,445,139,3306"
 
 	// take paths of masscan output files to parse
-	var massOut chan string = make(chan string, TOTAL_SHARDS)
+	var massOut, nmapOut chan string = make(chan string), make(chan string)
 	// take prefixes to scan
-	var massIn chan string = make(chan string)
-	var nmapIn chan string = make(chan string)
-	var nmapOut chan string = make(chan string)
-	// for i := 0; i < TOTAL_SHARDS; i++ {
-	// 	// channels[i] = make(chan string)
-	// 	go func() {
-	// 		outputPath := runMasscan(ipRange, portRange, 1)
-	// 		if outputPath != "" {
-	// 			massOut <- outputPath
-	// 		}
-	// 	}()
-	// }
+	var massIn, nmapIn chan string = make(chan string), make(chan string)
+	// var nmapOut chan string = make(chan string)
+	// var nmapIn chan string = make(chan string)
 
+	// Initialize input channels with data
+	// TODO integrate it with the main loop in a clean way
+	go func() {
+		prefix, _ := getNextMass(SCAN_METHOD)
+		massIn <- prefix
+	}()
+	go func() {
+		ipRange, _ := getNextNmap()
+		nmapIn <- ipRange
+	}()
 	// var path string
 	for {
 		select {
 		case prefix := <-massIn:
-			for i := 0; i < TOTAL_SHARDS; i++ {
-				// channels[i] = make(chan string)
-				go func() {
-					outputPath := runMass(ipRange, portRange, 1)
-					if outputPath != "" {
-						massOut <- outputPath
-					}
-				}()
-			}
+			fmt.Printf("Received prefix %s, starting masscan", prefix)
+			go func() {
+				outputPath := runMass(prefix, portRange, *shardFlag, *totalShardsFlag)
+				if outputPath != "" {
+					massOut <- outputPath
+				}
+			}()
 		case path := <-massOut:
-			entries := parseJson(path)
-			saveToMongo(entries)
+			fmt.Printf("Masscan returned output to %s, saving to DB", path)
+			entries := parseMassJson(path)
+			go massToMongo(entries)
+			go func() {
+				prefix, _ := getNextMass(SCAN_METHOD)
+				massIn <- prefix
+			}()
 		case ipRange := <-nmapIn:
+			fmt.Printf("Received ipRange %s\n, starting nmap", ipRange)
 			runNmap(ipRange, portRange)
-		case <-nmapOut:
-			fmt.Println("another scan done nmap")
-		default:
-			fmt.Println("in default")
+		case path := <-nmapOut:
+			fmt.Printf("Nmap returned output to %s, saving to DB", path)
+			entries := parseNmapXML(path)
+			go nmapToMongo(entries)
+			go func() {
+				ipRange, _ := getNextNmap()
+				nmapIn <- ipRange
+			}()
 		}
 	}
 
 }
 
-func getNextMass() {
+// Returns next available prefix for a ASN until are ASNs are scanned
+// then moves on to the next ASN
+func getNextMass(method string) (string, error) {
+	var prefix string
+	for {
+		prefix = as.GetNextPrefix(SCANNED_COUNTRY, method)
+		if isPrefixScanned(prefix) {
+			as.MarkPrefixScanned(prefix)
+			continue
+		}
+		break
+	}
+	//  errors.New("next Masscan target not available")
+	return prefix, nil
+}
 
+func isPrefixScanned(prefix string) bool {
+	// Consult DB to check that
+	return false
 }
 
 // Parse through mass results in the DB and get up to n (100)
 // starting from the ones with lowest timestamps.
-func getNextNmap() string {
-
+func getNextNmap() (string, error) {
+	//  errors.New("next Nmap target not available")
+	return "", nil
 }
 
 func runNmap(hosts string, ports string) string {
-	// wait := "0"
-	// shards := fmt.Sprintf("%d/%d", shard, TOTAL_SHARDS)
-
-	outputPath := fmt.Sprintf("tmp/nmap_{}_{}_{}.xml", hosts, ports, strconv.Itoa(rand.Int())) // TODO: randomize
+	outputPath := fmt.Sprintf("tmp/nmap_%s_%s_%d.xml", hosts, ports, rand.Int()) // TODO: randomize
 	nmapPath, err := exec.LookPath("masscan")
 	if err != nil {
 		panic(err)
@@ -118,8 +155,8 @@ func runNmap(hosts string, ports string) string {
 	return outputPath
 }
 
-func parseNmapJson() {
-
+func parseNmapXML(path string) []nmapEntry {
+	return []nmapEntry{{}}
 }
 
 func reverseDns(ip string) []string {
@@ -140,10 +177,10 @@ func reverseDns(ip string) []string {
 	return rDnsList
 }
 
-func runMass(ipRange string, portRange string, shard int) string {
+func runMass(ipRange string, portRange string, shard int, totalShards int) string {
 	wait := "0"
-	shards := fmt.Sprintf("%d/%d", shard, TOTAL_SHARDS)
-	outputPath := fmt.Sprintf("tmp/masscan_{}_{}.json", ipRange, strconv.Itoa(rand.Int())) // TODO: randomize
+	shards := fmt.Sprintf("%d/%d", shard, totalShards)
+	outputPath := fmt.Sprintf("tmp/masscan_%s_%d.json", ipRange, rand.Int()) // TODO: randomize
 	masscanPath, err := exec.LookPath("masscan")
 	fmt.Println(masscanPath)
 	if err != nil {
@@ -193,7 +230,6 @@ func parseMassJson(path string) []massEntry {
 	}
 
 	entries := make([]massEntry, len(rawEntries))
-	var country string
 	var rDns []string
 	for i, e := range rawEntries {
 		rDns = reverseDns(e.Ip)
@@ -238,7 +274,7 @@ func massToMongo(entries []massEntry) error {
 	return nil
 }
 
-func nmapToMongo() {
+func nmapToMongo(entries []nmapEntry) {
 
 }
 
