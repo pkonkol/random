@@ -65,7 +65,3 @@ func TestWhoisGet(t *testing.T) {
 	fmt.Printf("%+v\n\n", out)
 	fmt.Printf("%+v\n", out.persons)
 }
-
-func TestGetInterestingAS(t *testing.T) {
-	GetASFromSmallest("PL")
-}
