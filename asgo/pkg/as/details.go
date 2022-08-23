@@ -10,6 +10,14 @@ import (
 	"github.com/pkonkol/random/asgo/pkg/db"
 )
 
+func GenerateDBDetails() {
+	fmt.Println("Generating DB details")
+	return
+	// det, peers, prefix := getDetails("AS12831")
+	// whois := getWhoisDetails()
+	// detailsToMongo()
+}
+
 func ReverseDns(ip string) []string {
 	path, err := exec.LookPath("dig")
 	if err != nil {
