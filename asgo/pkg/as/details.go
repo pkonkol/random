@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/pkonkol/random/asgo/pkg/db"
 )
 
 func ReverseDns(ip string) []string {
@@ -26,28 +28,28 @@ func ReverseDns(ip string) []string {
 	return rDnsList
 }
 
-func getDetails(as string) (asnDetails, asnPeers, asnPrefixes) {
+func getDetails(as string) (db.AsnDetails, db.AsnPeers, db.AsnPrefixes) {
 	url := BGPVIEW_API_URL + "/asn/" + as
 	bodyBytes := makeApiCall(url) // test for first element
-	var details asnDetails
+	var details db.AsnDetails
 	json.Unmarshal(bodyBytes, &details)
 
 	// should i alsoget upstreams and downstreams specifically or doesn't matter?
 	url = BGPVIEW_API_URL + "/asn/" + as + "/peers"
 	bodyBytes = makeApiCall(url)
-	var peers asnPeers
+	var peers db.AsnPeers
 	json.Unmarshal(bodyBytes, &peers)
 	// calculate prefix count and addresses sum
 	url = BGPVIEW_API_URL + "/asn/" + as + "/prefixes"
 	bodyBytes = makeApiCall(url)
-	var prefixes asnPrefixes
+	var prefixes db.AsnPrefixes
 	json.Unmarshal(bodyBytes, &prefixes)
 	// calculate prefix count and addresses sum
 
 	return details, peers, prefixes
 }
 
-func getWhoisDetails(as string) WhoisDetails {
+func getWhoisDetails(as string) db.WhoisDetails {
 	asName := fmt.Sprintf("as%s", as)
 	raw, err := exec.Command("whois", asName).Output()
 	if err != nil {
@@ -118,18 +120,5 @@ func getWhoisDetails(as string) WhoisDetails {
 	fmt.Println(autnum)
 	fmt.Println(persons)
 
-	return WhoisDetails{org, autnum, persons}
-}
-
-type AsnDetails struct {
-	Status        string `json:"status"`
-	StatusMessage string `json:"status_message"`
-	Data          struct {
-		Asn              int         `json:"asn"`
-		Name             interface{} `json:"name"`
-		DescriptionShort string      `json:"description_short"`
-		DescriptionFull  []string    `json:"description_full"`
-		CountryCode      string      `json:"country_code"`
-		Website          interface{} `json:"website"`
-	} `json:"data"`
+	return db.WhoisDetails{org, autnum, persons}
 }

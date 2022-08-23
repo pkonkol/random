@@ -15,16 +15,10 @@ const (
 	MONGODB_DB   = "masscan_go"
 )
 
-type WhoisDetails struct {
-	organisation map[string]string
-	autnum       map[string]string
-	persons      []map[string]string
-}
-
 type DBClient struct {
-	client *mongo.Client
-	ctx    context.Context
-	cancel context.CancelFunc
+	Client *mongo.Client
+	Ctx    context.Context
+	Cancel context.CancelFunc
 }
 
 var DB DBClient
@@ -43,8 +37,8 @@ func init() {
 		panic(err)
 	}
 	DB = DBClient{
-		client: client,
-		ctx:    ctx,
-		cancel: cancel,
+		Client: client,
+		Ctx:    ctx,
+		Cancel: cancel,
 	}
 }

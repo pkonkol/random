@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/pkonkol/random/asgo/pkg/db"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GenerateDBOverview() {
@@ -16,7 +18,7 @@ func GenerateDBOverview() {
 
 func asrankToMongo() {
 	const reqEntries int = 1000
-	collection := db.DB.client.Database("masscan_go").Collection("as")
+	collection := db.DB.Client.Database("masscan_go").Collection("as")
 	opts := options.Update().SetUpsert(true)
 
 	var total_count int64
@@ -35,7 +37,7 @@ func asrankToMongo() {
 
 		for _, e := range entry.Data.Asns.Edges {
 			e := e.Node
-			_, err := collection.UpdateOne(ctx, bson.M{"as_number": e.Asn},
+			_, err := collection.UpdateOne(db.DB.Ctx, bson.M{"as_number": e.Asn},
 				bson.M{"$set": bson.M{
 					"name":             e.AsnName,
 					"country":          e.Country.Iso,
@@ -57,7 +59,7 @@ func asrankToMongo() {
 		}
 		offset += reqEntries
 	}
-	count, err := collection.CountDocuments(ctx, bson.M{})
+	count, err := collection.CountDocuments(db.DB.Ctx, bson.M{})
 	if err != nil {
 		panic(err)
 	}
@@ -66,14 +68,14 @@ func asrankToMongo() {
 		fmt.Println("smth fucked up")
 	}
 
-	if err := client.Disconnect(ctx); err != nil {
+	if err := db.DB.Client.Disconnect(db.DB.Ctx); err != nil {
 		panic(err)
 	}
 }
 
 func asrankOrgMongo() {
 	const reqEntries int = 1000
-	collection := db.DB.client.Database("masscan_go").Collection("org")
+	collection := db.DB.Client.Database("masscan_go").Collection("org")
 	opts := options.Update().SetUpsert(true)
 
 	for first, offset := reqEntries, 0; ; {
@@ -91,7 +93,7 @@ func asrankOrgMongo() {
 				member_asns = member_asns + huj.Node.Asn
 			}
 			e := e.Node
-			_, err := collection.UpdateOne(ctx, bson.M{"orgId": e.OrgID},
+			_, err := collection.UpdateOne(db.DB.Ctx, bson.M{"orgId": e.OrgID},
 				bson.M{"$set": bson.M{
 					"name":               e.OrgName,
 					"country":            e.Country.Iso,
@@ -110,11 +112,11 @@ func asrankOrgMongo() {
 		offset += reqEntries
 	}
 	// cur, err := collection.Find(ctx, bson.D{})
-	_, err := collection.CountDocuments(ctx, bson.M{})
+	_, err := collection.CountDocuments(db.DB.Ctx, bson.M{})
 	if err != nil {
 		panic(err)
 	}
-	if err := client.Disconnect(ctx); err != nil {
+	if err := db.DB.Client.Disconnect(db.DB.Ctx); err != nil {
 		panic(err)
 	}
 }

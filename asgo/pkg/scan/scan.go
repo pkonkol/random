@@ -56,18 +56,18 @@ func Run() {
 		case path := <-massOut:
 			fmt.Printf("Masscan returned output to %s, saving to DB", path)
 			entries := parseMassJson(path)
-			go massToMongo(entries)
+			go db.MassToMongo(entries)
 			go func() {
 				prefix, _ := GetNextMass(SCAN_METHOD)
 				massIn <- prefix
 			}()
 		case ipRange := <-nmapIn:
 			fmt.Printf("Received ipRange %s\n, starting nmap", ipRange)
-			scan.RunNmap(ipRange, portRange)
+			scan.RunNmap(ipRange, PORT_RANGE)
 		case path := <-nmapOut:
 			fmt.Printf("Nmap returned output to %s, saving to DB", path)
 			entries := parseNmapXML(path)
-			go NmapToMongo(entries)
+			go db.NmapToMongo(entries)
 			go func() {
 				ipRange, _ := GetNextNmap()
 				nmapIn <- ipRange
