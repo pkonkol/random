@@ -11,11 +11,8 @@ import (
 	pb "grpc.test/src/proto"
 )
 
-// const defaultName = "world"
-
 var (
 	addr = flag.String("addr", "localhost:50051", "the address to connect to")
-	name = flag.String("name", "huj123", "prob unneeded")
 )
 
 func main() {
@@ -29,9 +26,9 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.Talk(ctx, &pb.TestRequest{Str: "asdf", Counter: 1})
+	r, err := c.SendRequest(ctx, &pb.TestRequest{Message: "hello from golang", Counter: 9000})
 	if err != nil {
-		log.Fatalf("could not talk: %v", err)
+		log.Fatalf("could not send request: %v", err)
 	}
-	log.Printf("Response is: %v - %v\n", r.GetCounter(), r.GetStr())
+	log.Printf("Response is: %v - %v\n", r.GetMessage(), r.GetCounter())
 }

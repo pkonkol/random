@@ -2,10 +2,10 @@ syntax = "proto3";
 
 option go_package = "grpc.test/src/proto";
 
-package proto;
+package grpc_demo;
 
 service Test {
-    rpc Talk (TestRequest) returns (TestReply) {}
+    rpc SendRequest (TestRequest) returns (TestReply) {}
     // rpc ServerStream (TestRequest) returns (stream TestReply) {}
     rpc ClientStream (stream NumberStream) returns (TestReply) {}
     // rpc DoubleStream (stream TestRequest) returns (stream TestReply) {}
@@ -15,11 +15,11 @@ message NumberStream {
     uint64 number = 1;
 }
 message TestRequest {
-    string str = 1;
+    string message = 1;
     int32 counter = 2;
 }
 
 message TestReply {
-    string str = 1;
+    string message = 1;
     int32 counter = 2;
 }

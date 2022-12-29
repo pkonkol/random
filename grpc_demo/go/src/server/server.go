@@ -17,13 +17,16 @@ type server struct {
 	pb.UnimplementedTestServer
 }
 
-func (s *server) Talk(ctx context.Context, in *pb.TestRequest) (*pb.TestReply, error) {
-	log.Printf("yeah logged: %v - %v", in.GetCounter(), in.GetStr())
-	return &pb.TestReply{Str: "go back", Counter: in.GetCounter() + 1}, nil
+func (s *server) SendRequest(ctx context.Context, in *pb.TestRequest) (*pb.TestReply, error) {
+	log.Printf("received message: %v - %v", in.GetCounter(), in.GetMessage())
+	return &pb.TestReply{
+			Message: fmt.Sprintf("reply from golang for %s: %d", in.GetMessage(), in.GetCounter()),
+			Counter: in.GetCounter() + 100},
+		nil
 }
 
-func (s *server) ClientStream(ctx context.Context, in []*pb.NumberStream) (*pb.TestReply, error) {
-
+func (s *server) ClientStream(pb.Test_ClientStreamServer) error {
+	return nil
 }
 
 func main() {

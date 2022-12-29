@@ -4,3 +4,6 @@ venv/
 cdk-test/
 manual_tmp
 main
+AoC2022/*/target/
+grpc_demo/rust/target/
+**/__pycache__
