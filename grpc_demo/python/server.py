@@ -10,7 +10,15 @@ class TestServicer(demo_pb2_grpc.TestServicer):
         return demo_pb2.TestReply(message="reply from python", counter=request.counter+1)
 
     def ClientStream(self, request_iterator, context):
-        return super().ClientStream(request_iterator, context)
+        print(f"received stream: {request_iterator}")
+        total = 0
+        cnt = 0
+        for i in request_iterator:
+            print(f"\treceived next NumberStream obj {i}", end="")
+            total += i.number
+            cnt += 1
+
+        return demo_pb2.TestReply(message=f"reply from python, received {cnt} numbers", counter=total)
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
