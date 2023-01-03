@@ -2,28 +2,44 @@
 use data_encoding::HEXUPPER;
 use serde::{Serialize, Deserialize};
 use ring::digest::{Context, Digest, SHA256};
-use std::time::{SystemTime};
+use std::{time::{SystemTime}, fmt::Display, str::FromStr};
+use owo_colors::OwoColorize;
 use std::fmt;
+use k256::{
+    ecdsa::{SigningKey, Signature, signature::Signer, VerifyingKey, signature::Verifier},
+    EncodedPoint,
+    SecretKey,
+    elliptic_curve::sec1::ToEncodedPoint, //schnorr::signature::Signature,
+    // ecdsa::{},
+};
+use generic_array::{ArrayLength, GenericArray};
 
-// const BLOCK_DATA_SIZE: usize = 10;
 const POW_BITS: usize = 2;
+const MY_PUBKEY: u64 = 1;
+const MASTER_SEED: [u8; 8] = [0; 8];
+const PENDING_THRESHOLD: usize = 3;
 
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Debug)]
+#[derive(Clone,  Deserialize, Serialize, PartialEq, Debug)] // Copy,
 struct Tx {
-    from: u64,
-    to: u64,
+    from: Pubkey,
+    to: Pubkey,
     amount: u128,
+    signature: Sig,
 }
 
 #[derive(Debug)]
 struct Cb {
-    to: u64,
+    to: Pubkey,
     amount: u128,
 }
 
-// #[derive(Serialize)]
 // type Txs = [Tx; BLOCK_DATA_SIZE];
+// #[derive(Serialize)]
 type BlockSHA = [u8; 32];
+
+// #[derive(Serialize)]
+type Pubkey = Vec<u8>;
+type Sig = String;
 
 // #[derive(Debug)]
 // struct BadSHAError {}
@@ -40,16 +56,54 @@ struct Block {
 }
 
 struct BlockChain {
-    blocks: Vec<Block>
+    blocks: Vec<Block>,
+    pending: Vec<Tx>,
+}
+
+struct Balance {
+    address: Pubkey,
+    amount: u64,
+    tx_count: u64,
+}
+
+type StateCache = Vec::<Balance>;
+
+impl Tx {
+    fn new(privkey: SigningKey, to: Pubkey, amount: u128) -> Self {
+        let pubkey = VerifyingKey::from(&privkey); // Serialize with `::to_encoded_point()`
+
+        let mut data = bincode::serialize(pubkey.to_encoded_point(false).as_bytes()).unwrap();
+        data.append(&mut bincode::serialize(&Vec::from(to.clone())).unwrap());
+        data.append(&mut bincode::serialize(&amount).unwrap());
+        let signature: Signature = privkey.sign(&data);
+
+        Tx {
+            from: Vec::from(pubkey.to_encoded_point(false).as_bytes()),
+            to: to,
+            amount: amount,
+            signature: signature.to_string(),
+        }
+    }
+    
+    fn verify(&self) -> bool {
+        let pubkey = VerifyingKey::from_sec1_bytes(&self.from).unwrap(); // Serialize with `::to_encoded_point()`
+
+        let mut data = bincode::serialize(&self.from).unwrap();
+        data.append(&mut bincode::serialize(&self.to).unwrap());
+        data.append(&mut bincode::serialize(&self.amount).unwrap());
+
+        let t = Signature::from_str(&self.signature).unwrap();
+        pubkey.verify(&data, &t).is_ok()
+    }
 }
 
 impl Block {
-    fn new(nonce: u64, ts: Vec<Tx>, prev: &Block, timestamp: u64, cbaddr: u64) -> Self {
+    fn new(nonce: u64, ts: Vec<Tx>, prev: &Block, timestamp: u64, cbaddr: &Pubkey) -> Self {
         let ph  = <BlockSHA>::try_from(prev.sha256().as_ref()).unwrap();
         let b = Self {
             id: prev.id + 1,
             timestamp: timestamp,
-            coinbase: vec![Cb{to: cbaddr, amount: 100}],
+            coinbase: vec![Cb{to: cbaddr.clone(), amount: 100}],
             nonce: nonce,
             tx: ts,
             prev_hash: ph,
@@ -67,9 +121,19 @@ impl Block {
     }
 }
 
+impl Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: {}, timestamp: {}, tx len: {}, prev: {}",
+            "Block ".green(), self.id, self.timestamp, self.tx.len(), HEXUPPER.encode(self.prev_hash.as_ref()))
+    }
+}
+
 impl BlockChain {
-    fn new() -> Self {
-        BlockChain { blocks: vec![BlockChain::init()] }
+    fn new(cbaddr: Pubkey) -> Self {
+        BlockChain { 
+            blocks: vec![BlockChain::init(cbaddr)],
+            pending: Vec::new(),
+        }
     }
     fn head(&self) -> &Block {
         self.blocks.first().unwrap()
@@ -77,17 +141,17 @@ impl BlockChain {
     fn tail(&self) -> &Block {
         self.blocks.last().unwrap()
     }
-    fn init() -> Block {
+    fn init(cbaddr: Pubkey) -> Block {
         Block {
             id: 0,
             nonce: 0,
             timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
-            coinbase: vec![Cb{to: 0xf, amount: 100_000_000},],
-            tx: vec![Tx{from: 0, to: 0, amount: 0},],
+            coinbase: vec![Cb{to: cbaddr, amount: 100_000_000},],
+            tx: Vec::new(),
             prev_hash: [0; 32],
         }
     }
-    fn mine(&mut self, cbaddr: u64) {
+    fn mine(&mut self, cbaddr: &Pubkey) {
         let tsp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() + 7200;
         let prev = self.tail();
         let mut new_sha: &[u8];
@@ -100,56 +164,73 @@ impl BlockChain {
             if new_sha[0..POW_BITS] != [0u8; POW_BITS as usize] {
                 continue 'out
             }
-            // for j in 0..POW_BITS {
-            //     if new_sha[j as usize] != 0u8 {
-            //         continue 'out
-            //     }
-            // }
-            println!("mined a block, hash: {:?}, nonce:{} ",  new_sha, b.nonce);
+            println!("{} hash: {}, nonce:{} ", "Mined a block".red(), HEXUPPER.encode(new_sha), b.nonce);
             self.blocks.push(b);
             return
         }
     }
 
     fn verify(&self) -> bool {
-        let mut prev = self.blocks.first().unwrap().sha256().clone();
-        let mut cur: Digest;
-        for b in self.blocks.iter() {
-            let d = b.sha256();
-            cur = d;//b.sha256().as_ref();
-            if cur.as_ref() != prev.as_ref() {
-                print!("fount not matching hashes: {:?} prev: {:?}\n", cur.as_ref(), prev.as_ref());
+        let mut prev = <BlockSHA>::try_from(self.blocks.first().unwrap().sha256().clone().as_ref()).unwrap();
+        let mut cur;
+        for b in self.blocks.iter().skip(1) {
+            cur = <BlockSHA>::try_from(b.sha256().as_ref()).unwrap();
+            if b.prev_hash != prev {
+                print!("found not matching hashes: {:?} prev: {:?}\n",
+                    HEXUPPER.encode(cur.as_ref()).red(), HEXUPPER.encode(prev.as_ref()).yellow());
                 return false
             }
             prev = cur;
         }
+        print!("{}", "Blockchain is valid :)\n".green());
         true
+    }
+
+    fn add_tx(&mut self, tx: Tx) {
+        if !tx.verify() {
+            print!("{}: {:?}", "TX failed to verify\n".on_red().white(), tx);
+            return
+        }
+        self.pending.push(tx);
     }
 }
 
 impl fmt::Display for BlockChain {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Len of blockchain is: {}\n", self.blocks.len());
+        write!(f, "{}: len: {}\n", "BlockChain".yellow(), self.blocks.len());
         for b in self.blocks.iter() {
-            write!(f, "{:?}\n", b);
+            write!(f, "\t{}\n", b);
         }
-        write!(f, "--------\n")
+        write!(f, "")
     }
 }
 
 fn main() {
-    println!("Hello, world!");
-    let my_address = 1u64;
-    let b = BlockChain::init();
-    let h = b.sha256();
-    let ph  = <BlockSHA>::try_from(h.as_ref()).unwrap();
-    print!(" h is {:?}\nph is {:?}\n", h.as_ref(), ph);
-    print!("len of hash slice is {}\n", h.as_ref().len());
-    print!("SHA256 for \n block {:?} \nis\n{}\n", b, HEXUPPER.encode(h.as_ref()));
-    let mut c = BlockChain::new();
-    c.mine(my_address);
-    c.mine(my_address);
-    c.mine(my_address);
-    print!("c is: {}\n", c);
-    print!("is the chain correct: {}", c.verify());
+    println!("{}", "start".on_green());
+    let master_privkey = SigningKey::from_bytes(&MASTER_SEED).unwrap();
+    let master_pubkey = VerifyingKey::from(&master_privkey);
+    let master_pubkey_vec = Vec::from(master_pubkey.to_encoded_point(false).as_bytes());
+    let mut c = BlockChain::new(master_pubkey_vec.clone());
+    c.mine(&master_pubkey_vec);
+    c.mine(&master_pubkey_vec);
+    c.mine(&master_pubkey_vec);
+    print!("{}", c);
+    c.verify();
+    println!();
+
+
+    let signing_key = SigningKey::from_bytes(&MASTER_SEED).unwrap();
+    let message = b"ECDSA proves knowledge of a secret number in the context of a single message";
+    let signature: Signature = signing_key.sign(message);
+    let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
+    print!("test sig is: {}", signature.to_string());
+
+    let privkey_1 = SigningKey::from_bytes(&[1; 8]).unwrap();
+    let pubkey_1 = VerifyingKey::from(&master_privkey);
+    let new_tx = Tx::new(master_privkey, Vec::from(pubkey_1.to_encoded_point(false).as_bytes()), 10);
+    c.add_tx(new_tx);
+
+
+    // TODO signatures and pubkey based accounts & transactions
+    // TODO later p2p nodes mesh
 }
