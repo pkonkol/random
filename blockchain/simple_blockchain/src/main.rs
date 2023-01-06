@@ -218,7 +218,7 @@ fn main() {
     c.verify();
     println!();
 
-
+    // TODO signatures and pubkey based accounts & transactions
     let signing_key = SigningKey::from_bytes(&MASTER_SEED).unwrap();
     let message = b"ECDSA proves knowledge of a secret number in the context of a single message";
     let signature: Signature = signing_key.sign(message);
@@ -231,6 +231,5 @@ fn main() {
     c.add_tx(new_tx);
 
 
-    // TODO signatures and pubkey based accounts & transactions
     // TODO later p2p nodes mesh
 }

@@ -6,4 +6,5 @@ manual_tmp
 main
 AoC2022/*/target/
 grpc_demo/rust/target/
+blockchain/simple_blockchain/target/
 **/__pycache__
